@@ -1,5 +1,4 @@
 import os
-import secrets
 from datetime import datetime
 
 from flask import Flask, redirect, render_template, request, send_from_directory, url_for, flash
@@ -8,13 +7,27 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///taskmanager.db')
+
+# Vaste SECRET_KEY nodig zodat sessies geldig blijven na herstarts op Azure
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'wijzig-dit-naar-een-veilige-sleutel-in-productie')
+
+# Database: op Azure App Service (Linux) is /home persistent
+if os.environ.get('WEBSITE_HOSTNAME'):  # draait op Azure
+    db_path = '/home/taskmanager.db'
+else:
+    db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'taskmanager.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{db_path}')
+
+# Session cookie instellingen voor Azure (HTTPS)
+app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('WEBSITE_HOSTNAME'))
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Log eerst in om deze pagina te bekijken.'
+login_manager.login_message_category = 'info'
 
 
 # ──────────────── Models ────────────────
