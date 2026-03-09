@@ -372,6 +372,21 @@ def admin_toggle_role(user_id):
     return redirect(url_for('admin_users'))
 
 
+@app.route('/users/<int:user_id>')
+@login_required
+def user_profile(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('Gebruiker niet gevonden.', 'danger')
+        return redirect(url_for('tasks'))
+    total = len(user.tasks)
+    done = sum(1 for t in user.tasks if t.status == 'afgerond')
+    open_count = sum(1 for t in user.tasks if t.status == 'open')
+    bezig_count = sum(1 for t in user.tasks if t.status == 'bezig')
+    return render_template('user_profile.html', viewed_user=user,
+                           total=total, done=done, open_count=open_count, bezig_count=bezig_count)
+
+
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_user(user_id):

@@ -10,9 +10,9 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Gebruikersnaam</th>
+                    <th>Gebruiker</th>
                     <th>E-mail</th>
+                    <th>Bio</th>
                     <th>Rol</th>
                     <th>Taken</th>
                     <th>Acties</th>
@@ -21,14 +21,20 @@
             <tbody>
                 {% for user in users %}
                 <tr>
-                    <td class="table-id-cell">{{ user.id }}</td>
                     <td>
-                        <span class="table-username">{{ user.username }}</span>
-                        {% if user.id == current_user.id %}
-                        <span class="badge--self">jij</span>
-                        {% endif %}
+                        <a href="{{ url_for('user_profile', user_id=user.id) }}" class="user-cell-link">
+                            <span class="user-cell-avatar" style="background-color:{{ user.avatar_color }};">
+                                {{ (user.display_name or user.username)[0] | upper }}
+                            </span>
+                            <span>
+                                <span class="table-username">{{ user.display_name or user.username }}</span>
+                                <span class="table-subtext">@{{ user.username }}</span>
+                                {% if user.id == current_user.id %}<span class="badge--self">jij</span>{% endif %}
+                            </span>
+                        </a>
                     </td>
                     <td class="table-email-cell">{{ user.email }}</td>
+                    <td class="table-bio-cell">{{ user.bio[:60] ~ '...' if user.bio and user.bio|length > 60 else (user.bio or '—') }}</td>
                     <td>
                         {% if user.is_admin %}
                         <span class="badge badge--admin">Admin</span>

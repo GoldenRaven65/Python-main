@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ viewed_user.display_name or viewed_user.username }} - Task Manager{% endblock %}
+{% block content %}
+<div class="profile-page">
+
+    <!-- Terug-knop -->
+    <div class="page-header" style="margin-bottom:1rem;">
+        <a href="javascript:history.back()" class="card-link">&larr; Terug</a>
+    </div>
+
+    <!-- Header kaart -->
+    <div class="profile-header-card">
+        <div class="profile-avatar" style="background-color: {{ viewed_user.avatar_color }};">
+            {{ (viewed_user.display_name or viewed_user.username)[0] | upper }}
+        </div>
+        <div class="profile-header-info">
+            <h2 class="profile-name">{{ viewed_user.display_name or viewed_user.username }}</h2>
+            <p class="profile-username">
+                @{{ viewed_user.username }}
+                {% if viewed_user.is_admin %}<span class="badge--vtm-admin">Admin</span>{% endif %}
+            </p>
+            {% if viewed_user.bio %}
+            <p class="profile-bio">{{ viewed_user.bio }}</p>
+            {% else %}
+            <p class="profile-bio" style="color:#9ca3af; font-style:italic;">Geen bio ingesteld.</p>
+            {% endif %}
+        </div>
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <span class="profile-stat-value">{{ total }}</span>
+                <span class="profile-stat-label">Totaal</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--open">{{ open_count }}</span>
+                <span class="profile-stat-label">Open</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--bezig">{{ bezig_count }}</span>
+                <span class="profile-stat-label">Bezig</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--done">{{ done }}</span>
+                <span class="profile-stat-label">Afgerond</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eigen profiel bewerken knop -->
+    {% if viewed_user.id == current_user.id %}
+    <div style="text-align:center; margin-top:1rem;">
+        <a href="{{ url_for('profile') }}" class="btn btn-primary">✏ Profiel bewerken</a>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

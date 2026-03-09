@@ -43,9 +43,9 @@
                 {% if task.due_date %}
                 <span class="badge badge--sm badge--neutral">📅 {{ task.due_date.strftime('%d-%m-%Y') }}</span>
                 {% endif %}
-                <span class="badge badge--sm badge--owner">👤 {{ task.owner.username }}</span>
+                <a href="{{ url_for('user_profile', user_id=task.owner.id) }}" class="badge badge--sm badge--owner badge--link" title="Klik voor profiel">👤 {{ task.owner.display_name or task.owner.username }}</a>
                 {% if task.assignee %}
-                <span class="badge badge--sm badge--assignee">📋 {{ task.assignee.username }}</span>
+                <a href="{{ url_for('user_profile', user_id=task.assignee.id) }}" class="badge badge--sm badge--assignee badge--link" title="Klik voor profiel">📋 {{ task.assignee.display_name or task.assignee.username }}</a>
                 {% endif %}
             </div>
 
