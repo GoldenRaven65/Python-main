@@ -350,6 +350,15 @@ def favicon():
 
 with app.app_context():
     db.create_all()
+
+    # Voeg assigned_to_id kolom toe als die nog niet bestaat (migratie)
+    import sqlite3
+    with sqlite3.connect(db_path) as conn:
+        columns = [row[1] for row in conn.execute('PRAGMA table_info(task)')]
+        if 'assigned_to_id' not in columns:
+            conn.execute('ALTER TABLE task ADD COLUMN assigned_to_id INTEGER REFERENCES user(id)')
+            conn.commit()
+
     # Maak een standaard admin-account als die nog niet bestaat
     if not User.query.filter_by(username='admin').first():
         admin = User(username='admin', email='admin@taskmanager.local', role='admin')
