@@ -61,6 +61,7 @@ module web './core/host/appservice.bicep' = {
     runtimeName: 'python'
     runtimeVersion: '3.13'
     scmDoBuildDuringDeployment: true
+    appCommandLine: 'gunicorn --bind=0.0.0.0 --timeout 600 app:app'
     tags: union(tags, { 'azd-service-name': 'web' })
   }
 }
