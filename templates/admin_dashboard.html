@@ -39,7 +39,8 @@
                 <thead>
                     <tr class="bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         <th class="px-6 py-3">Taak</th>
-                        <th class="px-6 py-3">Eigenaar</th>
+                        <th class="px-6 py-3">Aangemaakt door</th>
+                        <th class="px-6 py-3">Toegewezen aan</th>
                         <th class="px-6 py-3">Status</th>
                         <th class="px-6 py-3">Prioriteit</th>
                         <th class="px-6 py-3">Datum</th>
@@ -54,6 +55,13 @@
                             </a>
                         </td>
                         <td class="px-6 py-3"><span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-cyan-100 text-cyan-700">{{ task.owner.username }}</span></td>
+                        <td class="px-6 py-3">
+                            {% if task.assignee %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">{{ task.assignee.username }}</span>
+                            {% else %}
+                            <span class="text-xs text-gray-400">—</span>
+                            {% endif %}
+                        </td>
                         <td class="px-6 py-3">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
                                 {% if task.status == 'open' %}bg-blue-100 text-blue-700
@@ -73,7 +81,7 @@
                         <td class="px-6 py-3 text-xs text-gray-400">{{ task.created_at.strftime('%d-%m-%Y') }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="px-6 py-8 text-center text-sm text-gray-400">Nog geen taken</td></tr>
+                    <tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-400">Nog geen taken</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

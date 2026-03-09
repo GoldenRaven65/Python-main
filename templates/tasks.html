@@ -68,8 +68,9 @@
                 {% if task.due_date %}
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">📅 {{ task.due_date.strftime('%d-%m-%Y') }}</span>
                 {% endif %}
-                {% if current_user.is_admin %}
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-cyan-100 text-cyan-700">👤 {{ task.owner.username }}</span>
+                {% if task.assignee %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">📋 {{ task.assignee.username }}</span>
                 {% endif %}
             </div>
 

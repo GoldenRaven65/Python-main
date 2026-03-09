@@ -4,6 +4,7 @@ from datetime import datetime
 from flask import Flask, redirect, render_template, request, send_from_directory, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from sqlalchemy import or_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -38,7 +39,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(10), nullable=False, default='user')   # 'admin' of 'user'
-    tasks = db.relationship('Task', backref='owner', lazy=True)
+    tasks = db.relationship('Task', backref='owner', lazy=True, foreign_keys='Task.user_id')
+    assigned_tasks = db.relationship('Task', backref='assignee', lazy=True, foreign_keys='Task.assigned_to_id')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -60,6 +62,7 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.Date, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 
 @login_manager.user_loader
@@ -139,7 +142,7 @@ def tasks():
     if current_user.is_admin:
         query = Task.query
     else:
-        query = Task.query.filter_by(user_id=current_user.id)
+        query = Task.query.filter(or_(Task.user_id == current_user.id, Task.assigned_to_id == current_user.id))
 
     if status_filter:
         query = query.filter_by(status=status_filter)
@@ -166,7 +169,14 @@ def task_create():
                     due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
                 except ValueError:
                     flash('Ongeldige datum.', 'danger')
-                    return render_template('task_form.html', action='create')
+                    users = User.query.order_by(User.username).all() if current_user.is_admin else []
+                    return render_template('task_form.html', action='create', users=users)
+
+            assigned_to_id = None
+            if current_user.is_admin:
+                assign_val = request.form.get('assigned_to_id', '')
+                if assign_val:
+                    assigned_to_id = int(assign_val)
 
             task = Task(
                 title=title,
@@ -174,12 +184,14 @@ def task_create():
                 priority=priority,
                 due_date=due_date,
                 user_id=current_user.id,
+                assigned_to_id=assigned_to_id,
             )
             db.session.add(task)
             db.session.commit()
             flash('Taak aangemaakt!', 'success')
             return redirect(url_for('tasks'))
-    return render_template('task_form.html', action='create')
+    users = User.query.order_by(User.username).all() if current_user.is_admin else []
+    return render_template('task_form.html', action='create', users=users)
 
 
 @app.route('/tasks/<int:task_id>/edit', methods=['GET', 'POST'])
@@ -189,7 +201,7 @@ def task_edit(task_id):
     if not task:
         flash('Taak niet gevonden.', 'danger')
         return redirect(url_for('tasks'))
-    if not current_user.is_admin and task.user_id != current_user.id:
+    if not current_user.is_admin and task.user_id != current_user.id and task.assigned_to_id != current_user.id:
         flash('Geen toegang tot deze taak.', 'danger')
         return redirect(url_for('tasks'))
 
@@ -208,13 +220,18 @@ def task_edit(task_id):
                     task.due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
                 except ValueError:
                     flash('Ongeldige datum.', 'danger')
-                    return render_template('task_form.html', action='edit', task=task)
+                    users = User.query.order_by(User.username).all() if current_user.is_admin else []
+                    return render_template('task_form.html', action='edit', task=task, users=users)
             else:
                 task.due_date = None
+            if current_user.is_admin:
+                assign_val = request.form.get('assigned_to_id', '')
+                task.assigned_to_id = int(assign_val) if assign_val else None
             db.session.commit()
             flash('Taak bijgewerkt!', 'success')
             return redirect(url_for('tasks'))
-    return render_template('task_form.html', action='edit', task=task)
+    users = User.query.order_by(User.username).all() if current_user.is_admin else []
+    return render_template('task_form.html', action='edit', task=task, users=users)
 
 
 @app.route('/tasks/<int:task_id>/delete', methods=['POST'])
@@ -224,7 +241,7 @@ def task_delete(task_id):
     if not task:
         flash('Taak niet gevonden.', 'danger')
         return redirect(url_for('tasks'))
-    if not current_user.is_admin and task.user_id != current_user.id:
+    if not current_user.is_admin and task.user_id != current_user.id and task.assigned_to_id != current_user.id:
         flash('Geen toegang tot deze taak.', 'danger')
         return redirect(url_for('tasks'))
     db.session.delete(task)
@@ -240,7 +257,7 @@ def task_toggle(task_id):
     if not task:
         flash('Taak niet gevonden.', 'danger')
         return redirect(url_for('tasks'))
-    if not current_user.is_admin and task.user_id != current_user.id:
+    if not current_user.is_admin and task.user_id != current_user.id and task.assigned_to_id != current_user.id:
         flash('Geen toegang tot deze taak.', 'danger')
         return redirect(url_for('tasks'))
     if task.status == 'afgerond':
@@ -314,6 +331,7 @@ def admin_delete_user(user_id):
         flash('Je kunt jezelf niet verwijderen.', 'warning')
     else:
         Task.query.filter_by(user_id=user.id).delete()
+        Task.query.filter_by(assigned_to_id=user.id).update({'assigned_to_id': None})
         db.session.delete(user)
         db.session.commit()
         flash(f'Gebruiker {user.username} verwijderd.', 'success')
