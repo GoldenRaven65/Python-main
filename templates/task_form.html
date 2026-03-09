@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{% if action == 'create' %}Nieuwe Taak{% else %}Taak Bewerken{% endif %} - Task Manager{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-2xl shadow-sm p-8">
+        <h3 class="text-xl font-bold text-gray-800 mb-6">{% if action == 'create' %}Nieuwe Taak{% else %}Taak Bewerken{% endif %}</h3>
+        <form method="post" class="space-y-5">
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Titel *</label>
+                <input type="text" id="title" name="title"
+                       value="{{ task.title if task else '' }}" required autofocus
+                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
+            </div>
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Beschrijving</label>
+                <textarea id="description" name="description" rows="4"
+                          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition resize-y">{{ task.description if task else '' }}</textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Prioriteit</label>
+                    <select id="priority" name="priority"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white">
+                        <option value="laag" {% if task and task.priority == 'laag' %}selected{% endif %}>Laag</option>
+                        <option value="normaal" {% if not task or task.priority == 'normaal' %}selected{% endif %}>Normaal</option>
+                        <option value="hoog" {% if task and task.priority == 'hoog' %}selected{% endif %}>Hoog</option>
+                    </select>
+                </div>
+                {% if action == 'edit' %}
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="status" name="status"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white">
+                        <option value="open" {% if task.status == 'open' %}selected{% endif %}>Open</option>
+                        <option value="bezig" {% if task.status == 'bezig' %}selected{% endif %}>Bezig</option>
+                        <option value="afgerond" {% if task.status == 'afgerond' %}selected{% endif %}>Afgerond</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div>
+                    <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                    <input type="date" id="due_date" name="due_date"
+                           value="{{ task.due_date.strftime('%Y-%m-%d') if task and task.due_date else '' }}"
+                           class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
+                </div>
+            </div>
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white font-semibold px-6 py-2.5 rounded-lg transition shadow-sm">
+                    {% if action == 'create' %}Taak Aanmaken{% else %}Opslaan{% endif %}
+                </button>
+                <a href="{{ url_for('tasks') }}" class="px-6 py-2.5 rounded-lg text-gray-600 border border-gray-300 hover:bg-gray-50 font-medium transition">Annuleren</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
