@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Mijn Profiel - Task Manager{% endblock %}
+{% block content %}
+<div class="profile-page">
+
+    <!-- Profielkaart (avatar + naam + stats) -->
+    <div class="profile-header-card">
+        <div class="profile-avatar" style="background-color: {{ current_user.avatar_color }};">
+            {{ (current_user.display_name or current_user.username)[0] | upper }}
+        </div>
+        <div class="profile-header-info">
+            <h2 class="profile-name">{{ current_user.display_name or current_user.username }}</h2>
+            <p class="profile-username">@{{ current_user.username }}
+                {% if current_user.is_admin %}<span class="badge--vtm-admin">Admin</span>{% endif %}
+            </p>
+            {% if current_user.bio %}
+            <p class="profile-bio">{{ current_user.bio }}</p>
+            {% endif %}
+        </div>
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <span class="profile-stat-value">{{ total }}</span>
+                <span class="profile-stat-label">Totaal</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--open">{{ open_count }}</span>
+                <span class="profile-stat-label">Open</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--bezig">{{ bezig_count }}</span>
+                <span class="profile-stat-label">Bezig</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--done">{{ done }}</span>
+                <span class="profile-stat-label">Afgerond</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-grid">
+
+        <!-- Profiel bewerken -->
+        <div class="form-card">
+            <h3 class="form-card-title">Profiel bewerken</h3>
+            <form method="post" class="form-stack">
+                <input type="hidden" name="action" value="update_profile">
+                <div>
+                    <label for="display_name" class="form-label">Weergavenaam</label>
+                    <input type="text" id="display_name" name="display_name"
+                           value="{{ current_user.display_name or '' }}"
+                           placeholder="{{ current_user.username }}"
+                           class="form-input">
+                    <p class="form-hint">Zichtbare naam in de app. Leeg = gebruikersnaam.</p>
+                </div>
+                <div>
+                    <label for="email" class="form-label">E-mailadres</label>
+                    <input type="email" id="email" name="email"
+                           value="{{ current_user.email }}"
+                           class="form-input">
+                </div>
+                <div>
+                    <label for="bio" class="form-label">Bio</label>
+                    <textarea id="bio" name="bio" rows="3" class="form-input"
+                              placeholder="Vertel iets over jezelf...">{{ current_user.bio or '' }}</textarea>
+                </div>
+                <div>
+                    <label class="form-label">Kleur avatar</label>
+                    <div class="avatar-color-picker">
+                        {% set colors = ['#ee653f','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#84cc16','#64748b'] %}
+                        {% for color in colors %}
+                        <label class="avatar-color-option">
+                            <input type="radio" name="avatar_color" value="{{ color }}"
+                                   {% if current_user.avatar_color == color %}checked{% endif %}>
+                            <span class="avatar-color-swatch" style="background:{{ color }};"></span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Wachtwoord wijzigen -->
+        <div class="form-card">
+            <h3 class="form-card-title">Wachtwoord wijzigen</h3>
+            <form method="post" class="form-stack">
+                <input type="hidden" name="action" value="change_password">
+                <div>
+                    <label for="current_password" class="form-label">Huidig wachtwoord</label>
+                    <input type="password" id="current_password" name="current_password"
+                           required class="form-input">
+                </div>
+                <div>
+                    <label for="new_password" class="form-label">Nieuw wachtwoord</label>
+                    <input type="password" id="new_password" name="new_password"
+                           required minlength="6" class="form-input">
+                    <p class="form-hint">Minimaal 6 tekens.</p>
+                </div>
+                <div>
+                    <label for="new_password2" class="form-label">Nieuw wachtwoord bevestigen</label>
+                    <input type="password" id="new_password2" name="new_password2"
+                           required minlength="6" class="form-input">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Wachtwoord wijzigen</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

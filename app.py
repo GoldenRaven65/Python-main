@@ -39,6 +39,9 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(10), nullable=False, default='user')   # 'admin' of 'user'
+    display_name = db.Column(db.String(100), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    avatar_color = db.Column(db.String(7), nullable=False, default='#ee653f')
     tasks = db.relationship('Task', backref='owner', lazy=True, foreign_keys='Task.user_id')
     assigned_tasks = db.relationship('Task', backref='assignee', lazy=True, foreign_keys='Task.assigned_to_id')
 
@@ -268,6 +271,57 @@ def task_toggle(task_id):
     return redirect(url_for('tasks'))
 
 
+# ──────────────── Profiel routes ────────────────
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'update_profile':
+            display_name = request.form.get('display_name', '').strip()
+            bio = request.form.get('bio', '').strip()
+            avatar_color = request.form.get('avatar_color', '#ee653f').strip()
+            email = request.form.get('email', '').strip()
+
+            if email and email != current_user.email:
+                if User.query.filter_by(email=email).first():
+                    flash('E-mailadres is al in gebruik.', 'danger')
+                    return redirect(url_for('profile'))
+                current_user.email = email
+
+            current_user.display_name = display_name or None
+            current_user.bio = bio or None
+            current_user.avatar_color = avatar_color
+            db.session.commit()
+            flash('Profiel bijgewerkt!', 'success')
+
+        elif action == 'change_password':
+            current_pw = request.form.get('current_password', '')
+            new_pw = request.form.get('new_password', '')
+            new_pw2 = request.form.get('new_password2', '')
+
+            if not current_user.check_password(current_pw):
+                flash('Huidig wachtwoord is onjuist.', 'danger')
+            elif len(new_pw) < 6:
+                flash('Nieuw wachtwoord moet minimaal 6 tekens zijn.', 'danger')
+            elif new_pw != new_pw2:
+                flash('Wachtwoorden komen niet overeen.', 'danger')
+            else:
+                current_user.set_password(new_pw)
+                db.session.commit()
+                flash('Wachtwoord gewijzigd!', 'success')
+
+        return redirect(url_for('profile'))
+
+    total = len(current_user.tasks)
+    done = sum(1 for t in current_user.tasks if t.status == 'afgerond')
+    open_count = sum(1 for t in current_user.tasks if t.status == 'open')
+    bezig_count = sum(1 for t in current_user.tasks if t.status == 'bezig')
+    return render_template('profile.html', total=total, done=done, open_count=open_count, bezig_count=bezig_count)
+
+
 # ──────────────── Admin routes ────────────────
 
 @app.route('/admin')
@@ -358,6 +412,15 @@ with app.app_context():
         if 'assigned_to_id' not in columns:
             conn.execute('ALTER TABLE task ADD COLUMN assigned_to_id INTEGER REFERENCES user(id)')
             conn.commit()
+        # Migreer nieuwe profielkolommen (user tabel)
+        user_columns = [row[1] for row in conn.execute('PRAGMA table_info(user)')]
+        if 'display_name' not in user_columns:
+            conn.execute('ALTER TABLE user ADD COLUMN display_name VARCHAR(100)')
+        if 'bio' not in user_columns:
+            conn.execute('ALTER TABLE user ADD COLUMN bio TEXT')
+        if 'avatar_color' not in user_columns:
+            conn.execute("ALTER TABLE user ADD COLUMN avatar_color VARCHAR(7) NOT NULL DEFAULT '#ee653f'")
+        conn.commit()
 
     # Maak een standaard admin-account als die nog niet bestaat
     if not User.query.filter_by(username='admin').first():
