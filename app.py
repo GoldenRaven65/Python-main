@@ -73,6 +73,15 @@ app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('WEBSITE_HOSTNAME'))
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Voorkom stale-connection fouten: test verbinding voor gebruik, recycle na 5 min
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,       # test verbinding vóór gebruik
+    'pool_recycle': 280,         # recycle vóór Azure's 4-min idle-timeout
+    'pool_timeout': 20,
+    'pool_size': 5,
+    'max_overflow': 2,
+}
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
