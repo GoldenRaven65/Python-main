@@ -29,9 +29,23 @@ if keyVaultName:
 
 # Database: bouw PostgreSQL-verbinding op voor Azure TaskmanagerDB,
 # of gebruik DATABASE_URL env-var, anders val terug op lokale SQLite.
-database_url = os.environ.get('DATABASE_URL', 'postgresql://martijnpython.postgres.database.azure.com')
 
-if not database_url and db_password:
+# Sta ook directe POSTGRES_PASSWORD env-var toe als fallback (lokale dev)
+if not db_password:
+    db_password = os.environ.get('POSTGRES_PASSWORD')
+
+database_url = os.environ.get('DATABASE_URL')
+
+if database_url and db_password:
+    # DATABASE_URL is gezet maar mist mogelijk het wachtwoord — injecteer het
+    from urllib.parse import urlparse, urlunparse
+    _parsed = urlparse(database_url)
+    if not _parsed.password and _parsed.username:
+        _netloc = f"{_parsed.username}:{db_password}@{_parsed.hostname}"
+        if _parsed.port:
+            _netloc += f":{_parsed.port}"
+        database_url = urlunparse(_parsed._replace(netloc=_netloc))
+elif not database_url and db_password:
     #POSTGRES_USER op de database-gebruiker (standaard: MartijnWissenburg)
     postgres_server = os.environ.get('POSTGRES_SERVER', 'martijnpython')
     postgres_user = os.environ.get('POSTGRES_USER', 'MartijnWissenburg')
