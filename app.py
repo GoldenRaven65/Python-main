@@ -32,9 +32,9 @@ if keyVaultName:
 database_url = os.environ.get('DATABASE_URL', '')
 
 if not database_url and db_password:
-    #POSTGRES_USER op de database-gebruiker (standaard: MartijnWissenberg)
-    postgres_server = os.environ.get('POSTGRES_SERVER', '')
-    postgres_user = os.environ.get('POSTGRES_USER', 'MartijnWissenberg')
+    #POSTGRES_USER op de database-gebruiker (standaard: MartijnWissenburg)
+    postgres_server = os.environ.get('POSTGRES_SERVER', 'martijnpython')
+    postgres_user = os.environ.get('POSTGRES_USER', 'MartijnWissenburg')
     if postgres_server:
         database_url = (
             f"postgresql://{postgres_user}:{db_password}"
