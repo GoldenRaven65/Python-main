@@ -44,8 +44,9 @@
                     </td>
                     <td class="table-count">{{ user.tasks | length }}</td>
                     <td>
-                        {% if user.id != current_user.id %}
                         <div class="task-actions">
+                            <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-sm btn-outline-vtm">✏ Bewerken</a>
+                            {% if user.id != current_user.id %}
                             <form method="post" action="{{ url_for('admin_toggle_role', user_id=user.id) }}">
                                 <button type="submit" class="btn btn-sm btn-outline-warning">
                                     {% if user.is_admin %}Maak User{% else %}Maak Admin{% endif %}
@@ -55,10 +56,8 @@
                                   onsubmit="return confirm('Weet je zeker dat je {{ user.username }} wilt verwijderen? Alle taken worden ook verwijderd!')">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Verwijderen</button>
                             </form>
+                            {% endif %}
                         </div>
-                        {% else %}
-                        <span class="table-empty-cell">—</span>
-                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

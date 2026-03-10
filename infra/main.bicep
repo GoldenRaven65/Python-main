@@ -22,6 +22,19 @@ param resourceGroupName string = ''
 param appServiceName string = ''
 param appServicePlanName string = ''
 
+@description('Naam van de Azure Key Vault die het database-wachtwoord (SQLsecret) bevat')
+param keyVaultName string = ''
+
+@description('PostgreSQL servernaam (zonder .postgres.database.azure.com)')
+param postgresServer string
+
+@description('PostgreSQL gebruikersnaam')
+param postgresUser string = 'MartijnWissenberg'
+
+@description('Veilige SECRET_KEY voor Flask-sessies')
+@secure()
+param secretKey string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 
 // tags that should be applied to all resources.
@@ -62,7 +75,14 @@ module web './core/host/appservice.bicep' = {
     runtimeVersion: '3.13'
     scmDoBuildDuringDeployment: true
     appCommandLine: 'gunicorn --bind=0.0.0.0 --timeout 600 app:app'
+    keyVaultName: keyVaultName
     tags: union(tags, { 'azd-service-name': 'web' })
+    appSettings: {
+      KEY_VAULT_NAME: keyVaultName
+      POSTGRES_SERVER: postgresServer
+      POSTGRES_USER: postgresUser
+      SECRET_KEY: secretKey
+    }
   }
 }
 

@@ -7,6 +7,18 @@
       },
       "location": {
         "value": "${AZURE_LOCATION}"
+      },
+      "keyVaultName": {
+        "value": "${AZURE_KEY_VAULT_NAME}"
+      },
+      "postgresServer": {
+        "value": "${AZURE_POSTGRES_SERVER}"
+      },
+      "postgresUser": {
+        "value": "${AZURE_POSTGRES_USER}"
+      },
+      "secretKey": {
+        "value": "${AZURE_SECRET_KEY}"
       }
     }
 }

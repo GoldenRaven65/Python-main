@@ -6,20 +6,55 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from sqlalchemy import or_
 from werkzeug.security import generate_password_hash, check_password_hash
+import psycopg2  # PostgreSQL adapter (gebruikt door SQLAlchemy bij postgresql:// DATABASE_URL)
+from azure.keyvault.secrets import SecretClient
+from azure.identity import DefaultAzureCredential
 
 app = Flask(__name__)
 
-# Vaste SECRET_KEY nodig zodat sessies geldig blijven na herstarts op Azure
+# SECRET_KEY
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'wijzig-dit-naar-een-veilige-sleutel-in-productie')
 
-# Database: op Azure App Service (Linux) is /home persistent
-if os.environ.get('WEBSITE_HOSTNAME'):  # draait op Azure
-    db_path = '/home/taskmanager.db'
-else:
-    db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'taskmanager.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{db_path}')
+# Azure Key Vault: haal database-wachtwoord op via beheerde identiteit
+db_password = None
+keyVaultName = os.environ.get('KEY_VAULT_NAME')
+if keyVaultName:
+    try:
+        KVUri = f"https://{keyVaultName}.vault.azure.net"
+        credential = DefaultAzureCredential()
+        kv_client = SecretClient(vault_url=KVUri, credential=credential)
+        db_password = kv_client.get_secret("SQLsecret").value
+    except Exception as e:
+        print(f"Key Vault kon niet worden bereikt: {e}")
 
-# Session cookie instellingen voor Azure (HTTPS)
+# Database: bouw PostgreSQL-verbinding op voor Azure TaskmanagerDB,
+# of gebruik DATABASE_URL env-var, anders val terug op lokale SQLite.
+database_url = os.environ.get('DATABASE_URL', '')
+
+if not database_url and db_password:
+    #POSTGRES_USER op de database-gebruiker (standaard: MartijnWissenberg)
+    postgres_server = os.environ.get('POSTGRES_SERVER', '')
+    postgres_user = os.environ.get('POSTGRES_USER', 'MartijnWissenberg')
+    if postgres_server:
+        database_url = (
+            f"postgresql://{postgres_user}:{db_password}"
+            f"@{postgres_server}.postgres.database.azure.com:5432/TaskmanagerDB"
+            f"?sslmode=require"
+        )
+
+if database_url:
+    # Azure levert soms "postgres://" — SQLAlchemy vereist "postgresql://"
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    if os.environ.get('WEBSITE_HOSTNAME'):  # Azure zonder database-config: persistent /home
+        db_path = '/home/taskmanager.db'
+    else:
+        db_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'taskmanager.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+
+# Session cookie instellingen voor Azure
 app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('WEBSITE_HOSTNAME'))
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -60,8 +95,8 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, default='')
-    status = db.Column(db.String(20), nullable=False, default='open')  # open, bezig, afgerond
-    priority = db.Column(db.String(10), nullable=False, default='normaal')  # laag, normaal, hoog
+    status = db.Column(db.String(20), nullable=False, default='open') 
+    priority = db.Column(db.String(10), nullable=False, default='normaal') 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     due_date = db.Column(db.Date, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -387,6 +422,62 @@ def user_profile(user_id):
                            total=total, done=done, open_count=open_count, bezig_count=bezig_count)
 
 
+@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user(user_id):
+    if not current_user.is_admin:
+        flash('Alleen admins hebben toegang.', 'danger')
+        return redirect(url_for('tasks'))
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('Gebruiker niet gevonden.', 'danger')
+        return redirect(url_for('admin_users'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'update_profile':
+            display_name = request.form.get('display_name', '').strip()
+            bio = request.form.get('bio', '').strip()
+            avatar_color = request.form.get('avatar_color', '#ee653f').strip()
+            email = request.form.get('email', '').strip()
+            username = request.form.get('username', '').strip()
+
+            if not username:
+                flash('Gebruikersnaam mag niet leeg zijn.', 'danger')
+                return redirect(url_for('admin_edit_user', user_id=user_id))
+            if username != user.username and User.query.filter_by(username=username).first():
+                flash('Gebruikersnaam is al in gebruik.', 'danger')
+                return redirect(url_for('admin_edit_user', user_id=user_id))
+            if email and email != user.email and User.query.filter_by(email=email).first():
+                flash('E-mailadres is al in gebruik.', 'danger')
+                return redirect(url_for('admin_edit_user', user_id=user_id))
+
+            user.username = username
+            user.email = email or user.email
+            user.display_name = display_name or None
+            user.bio = bio or None
+            user.avatar_color = avatar_color
+            db.session.commit()
+            flash(f'Profiel van {user.username} bijgewerkt.', 'success')
+
+        elif action == 'reset_password':
+            new_pw = request.form.get('new_password', '')
+            new_pw2 = request.form.get('new_password2', '')
+            if len(new_pw) < 6:
+                flash('Wachtwoord moet minimaal 6 tekens zijn.', 'danger')
+            elif new_pw != new_pw2:
+                flash('Wachtwoorden komen niet overeen.', 'danger')
+            else:
+                user.set_password(new_pw)
+                db.session.commit()
+                flash(f'Wachtwoord van {user.username} gewijzigd.', 'success')
+
+        return redirect(url_for('admin_edit_user', user_id=user_id))
+
+    return render_template('admin_edit_user.html', edited_user=user)
+
+
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_user(user_id):
@@ -418,31 +509,32 @@ def favicon():
 # ──────────────── Database init ────────────────
 
 with app.app_context():
-    db.create_all()
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if 'postgresql' in db_uri:
+        # Verberg wachtwoord in logoutput
+        safe_uri = db_uri.split('@')[-1] if '@' in db_uri else db_uri
+        print(f"[DB] Verbinding met PostgreSQL: {safe_uri}")
+    else:
+        print(f"[DB] Lokale SQLite database actief")
 
-    # Voeg assigned_to_id kolom toe als die nog niet bestaat (migratie)
-    import sqlite3
-    with sqlite3.connect(db_path) as conn:
-        columns = [row[1] for row in conn.execute('PRAGMA table_info(task)')]
-        if 'assigned_to_id' not in columns:
-            conn.execute('ALTER TABLE task ADD COLUMN assigned_to_id INTEGER REFERENCES user(id)')
-            conn.commit()
-        # Migreer nieuwe profielkolommen (user tabel)
-        user_columns = [row[1] for row in conn.execute('PRAGMA table_info(user)')]
-        if 'display_name' not in user_columns:
-            conn.execute('ALTER TABLE user ADD COLUMN display_name VARCHAR(100)')
-        if 'bio' not in user_columns:
-            conn.execute('ALTER TABLE user ADD COLUMN bio TEXT')
-        if 'avatar_color' not in user_columns:
-            conn.execute("ALTER TABLE user ADD COLUMN avatar_color VARCHAR(7) NOT NULL DEFAULT '#ee653f'")
-        conn.commit()
+    try:
+        db.create_all()
+        print("[DB] Tabellen aangemaakt / al aanwezig")
+    except Exception as e:
+        print(f"[DB] Fout bij db.create_all(): {e}")
+        raise
 
     # Maak een standaard admin-account als die nog niet bestaat
-    if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin', email='admin@taskmanager.local', role='admin')
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
+    try:
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', email='admin@taskmanager.local', role='admin')
+            admin.set_password('admin123')
+            db.session.add(admin)
+            db.session.commit()
+            print("[DB] Standaard admin-account aangemaakt")
+    except Exception as e:
+        print(f"[DB] Fout bij aanmaken admin-account: {e}")
+        db.session.rollback()
 
 
 if __name__ == '__main__':

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Gebruiker bewerken – {{ edited_user.username }} - Task Manager{% endblock %}
+{% block content %}
+<div class="profile-page">
+
+    <div class="page-header" style="margin-bottom:1.5rem;">
+        <h2 class="page-title">Gebruiker bewerken</h2>
+        <a href="{{ url_for('admin_users') }}" class="card-link">&larr; Terug naar Gebruikersbeheer</a>
+    </div>
+
+    <!-- Profieloverzicht boven de formulieren -->
+    <div class="profile-header-card" style="margin-bottom:1.5rem;">
+        <div class="profile-avatar" style="background-color: {{ edited_user.avatar_color }};">
+            {{ (edited_user.display_name or edited_user.username)[0] | upper }}
+        </div>
+        <div class="profile-header-info">
+            <h2 class="profile-name">{{ edited_user.display_name or edited_user.username }}</h2>
+            <p class="profile-username">
+                @{{ edited_user.username }}
+                {% if edited_user.is_admin %}<span class="badge--vtm-admin">Admin</span>{% endif %}
+            </p>
+            {% if edited_user.bio %}
+            <p class="profile-bio">{{ edited_user.bio }}</p>
+            {% else %}
+            <p class="profile-bio" style="color:#9ca3af;font-style:italic;">Geen bio ingesteld.</p>
+            {% endif %}
+        </div>
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <span class="profile-stat-value">{{ edited_user.tasks | length }}</span>
+                <span class="profile-stat-label">Taken</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--open">{{ edited_user.tasks | selectattr('status','eq','open') | list | length }}</span>
+                <span class="profile-stat-label">Open</span>
+            </div>
+            <div class="profile-stat">
+                <span class="profile-stat-value profile-stat-value--done">{{ edited_user.tasks | selectattr('status','eq','afgerond') | list | length }}</span>
+                <span class="profile-stat-label">Afgerond</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-grid">
+
+        <!-- Profiel bewerken -->
+        <div class="form-card">
+            <h3 class="form-card-title">Profiel bewerken</h3>
+            <form method="post" class="form-stack">
+                <input type="hidden" name="action" value="update_profile">
+                <div>
+                    <label for="username" class="form-label">Gebruikersnaam</label>
+                    <input type="text" id="username" name="username"
+                           value="{{ edited_user.username }}" required class="form-input">
+                </div>
+                <div>
+                    <label for="display_name" class="form-label">Weergavenaam</label>
+                    <input type="text" id="display_name" name="display_name"
+                           value="{{ edited_user.display_name or '' }}"
+                           placeholder="{{ edited_user.username }}" class="form-input">
+                    <p class="form-hint">Zichtbare naam in de app. Leeg = gebruikersnaam.</p>
+                </div>
+                <div>
+                    <label for="email" class="form-label">E-mailadres</label>
+                    <input type="email" id="email" name="email"
+                           value="{{ edited_user.email }}" class="form-input">
+                </div>
+                <div>
+                    <label for="bio" class="form-label">Bio</label>
+                    <textarea id="bio" name="bio" rows="3" class="form-input"
+                              placeholder="Bio van de gebruiker...">{{ edited_user.bio or '' }}</textarea>
+                </div>
+                <div>
+                    <label class="form-label">Kleur avatar</label>
+                    <div class="avatar-color-picker">
+                        {% set colors = ['#ee653f','#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#84cc16','#64748b'] %}
+                        {% for color in colors %}
+                        <label class="avatar-color-option">
+                            <input type="radio" name="avatar_color" value="{{ color }}"
+                                   {% if edited_user.avatar_color == color %}checked{% endif %}>
+                            <span class="avatar-color-swatch" style="background:{{ color }};"></span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Opslaan</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Wachtwoord resetten -->
+        <div class="form-card">
+            <h3 class="form-card-title">Wachtwoord resetten</h3>
+            <p class="form-hint" style="margin-bottom:1rem;">Stel een nieuw wachtwoord in voor deze gebruiker. De gebruiker hoeft het huidige wachtwoord niet in te voeren.</p>
+            <form method="post" class="form-stack">
+                <input type="hidden" name="action" value="reset_password">
+                <div>
+                    <label for="new_password" class="form-label">Nieuw wachtwoord</label>
+                    <input type="password" id="new_password" name="new_password"
+                           required minlength="6" class="form-input">
+                    <p class="form-hint">Minimaal 6 tekens.</p>
+                </div>
+                <div>
+                    <label for="new_password2" class="form-label">Bevestig wachtwoord</label>
+                    <input type="password" id="new_password2" name="new_password2"
+                           required minlength="6" class="form-input">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Wachtwoord resetten</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
