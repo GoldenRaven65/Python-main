@@ -20,7 +20,7 @@ db_password = None
 keyVaultName = os.environ.get('KEY_VAULT_NAME')
 if keyVaultName:
     try:
-        KVUri = f"https://{keyVaultName}.vault.azure.net"
+        KVUri = f"https://martijnsleutel.vault.azure.net/"
         credential = DefaultAzureCredential()
         kv_client = SecretClient(vault_url=KVUri, credential=credential)
         db_password = kv_client.get_secret("SQLsecret").value
